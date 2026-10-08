@@ -1,0 +1,103 @@
+﻿@page "/"
+@using BlazingPizzaApp.Data
+@using BlazingPizzaApp.Model
+@using BlazingPizzaApp.Shared
+@using BlazingPizzaApp.Services
+@inject OrderState OrderState
+
+<style>
+    .main {
+        flex-grow: 1 !important;
+        display: block !important;
+        overflow-y: auto !important;
+        padding: 2rem !important;
+        height: calc(100vh - 60px) !important;
+    }
+
+    .pizza-cards {
+        display: grid !important;
+        grid-template-columns: repeat(auto-fill, 280px) !important;
+        gap: 1.5rem !important;
+        padding: 0 !important;
+        margin-top: 1rem !important;
+        list-style: none !important;
+    }
+</style>
+
+<div class="main">
+    <h1 style="margin-top: 0;">Blazing Pizzas</h1>
+    
+    <ul class="pizza-cards">
+        @foreach (var pizzaSpecial in pizzaSpecials)
+        {
+            <li @onclick="() => OrderState.ShowConfigurePizzaDialog(pizzaSpecial)" style="background-image: url('@pizzaSpecial.ImageUrl')">
+                <div class="pizza-info">
+                    <span class="title">@pizzaSpecial.Name</span>
+                    @pizzaSpecial.Description
+                    <span class="price">@pizzaSpecial.GetFormattedBasePrice()</span>
+                </div>
+            </li>
+        }
+    </ul>
+</div>
+
+@if (OrderState.ShowingConfigureDialog)
+{
+    <ConfigurePizzaDialog Pizza="OrderState.ConfiguringPizza"
+        OnCancel="OrderState.CancelConfigurePizzaDialog"
+        OnConfirm="AddToOrder" />
+}
+
+<div class="sidebar">
+    @if (order.Pizzas.Any())
+    {
+        <div class="order-contents">
+            <h2>Your order</h2>
+
+            @foreach (var configuredPizza in order.Pizzas)
+            {
+                <div class="cart-item">
+                    <!-- Tambahkan baris ini untuk memunculkan tombol silang (X) -->
+                    <a @onclick="@(() => order.Pizzas.Remove(configuredPizza))" class="delete-item">x</a>
+        
+                    <div class="title">@(configuredPizza.Size)" @configuredPizza.Special.Name</div>
+                    <div class="item-price">
+                        @configuredPizza.GetFormattedTotalPrice()
+                    </div>
+                </div>
+            }
+        </div>
+    }
+    else
+    {
+        <div class="empty-cart">Choose a pizza<br>to get started</div>
+    }
+
+    <div class="order-total @(order.Pizzas.Any() ? "" : "hidden")">
+        Total:
+        <span class="total-price">@order.GetFormattedTotalPrice()</span>
+        <a href="checkout" class="@(OrderState.Order.Pizzas.Count == 0 ? "btn btn-warning disabled" : "btn btn-warning")">
+            Order >
+        </a>
+    </div>
+</div>
+
+@code {
+    private List<PizzaSpecial> pizzaSpecials = new List<PizzaSpecial>();
+
+    Order order => OrderState.Order;
+
+    [Inject]
+    private IPizzaSpecials PizzaSpecialsService { get; set; }
+
+    protected override async Task OnInitializedAsync()
+    {
+        pizzaSpecials = (await PizzaSpecialsService.GetPizzaSpecialsAsync()).ToList();
+    } 
+    
+    private void AddToOrder()
+    {
+        OrderState.ConfirmConfigurePizzaDialog();
+        StateHasChanged();
+    }
+}
